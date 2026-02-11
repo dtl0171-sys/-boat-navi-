@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../models/waypoint.dart';
 import '../models/ais_vessel.dart';
 import '../providers/navigation_provider.dart';
+import '../services/web_tile_provider.dart';
 import 'weather_panel.dart';
 
 class MapWidget extends StatefulWidget {
@@ -264,40 +265,20 @@ class _MapWidgetState extends State<MapWidget> {
             onTap: _onMapTap,
           ),
           children: [
-            // OpenStreetMap base layer
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.example.boat_navi',
+              tileProvider: WebTileProvider(),
             ),
-            // OpenSeaMap overlay
-            TileLayer(
-              urlTemplate:
-                  'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.example.boat_navi',
-            ),
-            // Route glow line (shadow)
             if (routePoints.length >= 2)
               PolylineLayer(
                 polylines: [
                   Polyline(
                     points: routePoints,
-                    strokeWidth: 8.0,
-                    color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
-                  ),
-                ],
-              ),
-            // Route main line
-            if (routePoints.length >= 2)
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: routePoints,
-                    strokeWidth: 3.0,
+                    strokeWidth: 3,
                     color: const Color(0xFF00E5FF),
                   ),
                 ],
               ),
-            // Markers
             MarkerLayer(markers: _buildMarkers(provider)),
           ],
         );
