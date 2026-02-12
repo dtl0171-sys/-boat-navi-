@@ -200,8 +200,29 @@
 
     setMapHidden: function (hidden) {
       var container = document.getElementById("leaflet-map-container");
-      if (container) {
-        container.style.visibility = hidden ? "hidden" : "visible";
+      if (!container) return;
+
+      // Walk UP the DOM tree from our div, hiding each ancestor,
+      // until we reach the Flutter platform view wrapper
+      // (the element whose parent is flt-glass-pane or body).
+      var el = container;
+      while (el) {
+        el.style.visibility = hidden ? "hidden" : "";
+
+        var parent = el.parentElement;
+        if (!parent || parent === document.body || parent === document.documentElement) {
+          break;
+        }
+        var parentTag = (parent.tagName || "").toUpperCase();
+        if (parentTag.indexOf("FLT") === 0) {
+          break;
+        }
+        el = parent;
+      }
+
+      // After restoring, Leaflet may need a resize recalc
+      if (!hidden && map) {
+        setTimeout(function () { map.invalidateSize(); }, 200);
       }
     },
 
