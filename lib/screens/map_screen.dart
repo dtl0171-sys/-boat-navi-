@@ -6,6 +6,7 @@ import '../models/waypoint.dart';
 import '../models/weather_data.dart';
 import '../models/marine_data.dart';
 import '../providers/navigation_provider.dart';
+import '../interop/leaflet_map_controller.dart';
 import '../widgets/leaflet_map_widget.dart';
 import '../widgets/route_info_bar.dart';
 import '../widgets/weather_panel.dart';
@@ -18,6 +19,7 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
+  final _mapKey = GlobalKey<LeafletMapWidgetState>();
   bool _seaMapEnabled = false;
   bool _gpsFollowEnabled = false;
 
@@ -27,13 +29,17 @@ class _MapScreenState extends State<MapScreen> {
   bool _showClearConfirm = false;
   bool _showAllWeather = false;
 
+  // --- Map controller access via GlobalKey ---
+  LeafletMapController? get _mapController =>
+      _mapKey.currentState?.controller;
+
   // --- Map visibility helper ---
   void _hideMap() {
-    LeafletMapWidget.controllerOf(context)?.setMapHidden(true);
+    _mapController?.setMapHidden(true);
   }
 
   void _showMap() {
-    LeafletMapWidget.controllerOf(context)?.setMapHidden(false);
+    _mapController?.setMapHidden(false);
   }
 
   // --- Map tap handler ---
@@ -75,7 +81,7 @@ class _MapScreenState extends State<MapScreen> {
   // --- Feature toggles ---
   void _toggleSeaMap() {
     setState(() => _seaMapEnabled = !_seaMapEnabled);
-    LeafletMapWidget.controllerOf(context)?.toggleSeaMap(_seaMapEnabled);
+    _mapController?.toggleSeaMap(_seaMapEnabled);
   }
 
   void _toggleGpsFollow() {
@@ -86,8 +92,7 @@ class _MapScreenState extends State<MapScreen> {
   void _panToCurrentPosition() {
     final pos = context.read<NavigationProvider>().currentPosition;
     if (pos != null) {
-      LeafletMapWidget.controllerOf(context)
-          ?.panTo(pos.latitude, pos.longitude);
+      _mapController?.panTo(pos.latitude, pos.longitude);
     }
   }
 
@@ -145,6 +150,7 @@ class _MapScreenState extends State<MapScreen> {
                 });
               }
               return LeafletMapWidget(
+                key: _mapKey,
                 onMapTap: _onMapTap,
                 onMarkerTap: _onMarkerTap,
               );

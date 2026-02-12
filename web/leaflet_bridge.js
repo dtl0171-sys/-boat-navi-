@@ -29,6 +29,8 @@
       markerGroup = L.layerGroup().addTo(map);
 
       map.on("click", function (e) {
+        console.log("[LeafletBridge] map click:", e.latlng.lat, e.latlng.lng,
+          "_dartOnMapTap exists:", !!window._dartOnMapTap);
         if (window._dartOnMapTap) {
           window._dartOnMapTap(e.latlng.lat, e.latlng.lng);
         }
