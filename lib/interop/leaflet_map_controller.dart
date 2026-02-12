@@ -120,6 +120,11 @@ class LeafletMapController {
     jsToggleSeaMap(enabled.toJS);
   }
 
+  void setMapHidden(bool hidden) {
+    if (!_initialized) return;
+    jsSetMapHidden(hidden.toJS);
+  }
+
   void invalidateSize() {
     if (!_initialized) return;
     jsInvalidateSize();

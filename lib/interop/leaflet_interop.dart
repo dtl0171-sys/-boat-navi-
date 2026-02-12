@@ -22,6 +22,9 @@ external void jsSetView(JSNumber lat, JSNumber lng, JSNumber zoom);
 @JS('LeafletBridge.toggleSeaMap')
 external void jsToggleSeaMap(JSBoolean enabled);
 
+@JS('LeafletBridge.setMapHidden')
+external void jsSetMapHidden(JSBoolean hidden);
+
 @JS('LeafletBridge.invalidateSize')
 external void jsInvalidateSize();
 

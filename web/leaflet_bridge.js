@@ -196,6 +196,13 @@
       return seaMapEnabled;
     },
 
+    setMapHidden: function (hidden) {
+      var container = document.getElementById("leaflet-map-container");
+      if (container) {
+        container.style.visibility = hidden ? "hidden" : "visible";
+      }
+    },
+
     invalidateSize: function () {
       if (map) {
         setTimeout(function () {
