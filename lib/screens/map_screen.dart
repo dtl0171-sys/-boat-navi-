@@ -3,12 +3,11 @@ import 'package:latlong2/latlong.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:provider/provider.dart';
 import '../models/waypoint.dart';
-import '../models/weather_data.dart';
-import '../models/marine_data.dart';
 import '../providers/navigation_provider.dart';
 import '../interop/leaflet_map_controller.dart';
 import '../widgets/leaflet_map_widget.dart';
 import '../widgets/route_info_bar.dart';
+import '../widgets/html_overlay.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -25,87 +24,60 @@ class _MapScreenState extends State<MapScreen> {
   LeafletMapController? get _mapController =>
       _mapKey.currentState?.controller;
 
-  // --- Map tap → push opaque route for waypoint selection ---
+  // --- Map tap → show HTML overlay for waypoint selection ---
   void _onMapTap(double lat, double lng) async {
-    final position = LatLng(lat, lng);
-    final result = await Navigator.of(context).push<String>(
-      PageRouteBuilder<String>(
-        opaque: true,
-        pageBuilder: (_, __, ___) =>
-            _WaypointSelectorPage(position: position),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 200),
-      ),
-    );
-    _mapController?.invalidateSize();
+    final result = await HtmlOverlay.showWaypointSelector(lat, lng);
     if (!mounted || result == null) return;
     final provider = context.read<NavigationProvider>();
     switch (result) {
       case 'departure':
-        provider.setDeparture(position);
+        provider.setDeparture(LatLng(lat, lng));
       case 'waypoint':
-        provider.addWaypoint(position);
+        provider.addWaypoint(LatLng(lat, lng));
       case 'destination':
-        provider.setDestination(position);
+        provider.setDestination(LatLng(lat, lng));
     }
   }
 
-  // --- Marker tap → push opaque route for marker actions ---
+  // --- Marker tap → show HTML overlay for marker actions ---
   void _onMarkerTap(String id) async {
-    final result = await Navigator.of(context).push<String>(
-      PageRouteBuilder<String>(
-        opaque: true,
-        pageBuilder: (_, __, ___) => _MarkerActionPage(waypointId: id),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 200),
-      ),
-    );
-    _mapController?.invalidateSize();
-    if (!mounted || result != 'delete') return;
     final provider = context.read<NavigationProvider>();
     final wp = provider.allWaypoints.where((w) => w.id == id).firstOrNull;
     if (wp == null) return;
-    if (wp.type == WaypointType.departure) {
+    final result = await HtmlOverlay.showMarkerAction(
+      name: wp.displayName,
+      lat: wp.position.latitude,
+      lng: wp.position.longitude,
+      weatherData: wp.weatherData,
+      marineData: wp.marineData,
+    );
+    if (!mounted || result != 'delete') return;
+    // Re-read the waypoint in case state changed
+    final current =
+        provider.allWaypoints.where((w) => w.id == id).firstOrNull;
+    if (current == null) return;
+    if (current.type == WaypointType.departure) {
       provider.removeDeparture();
-    } else if (wp.type == WaypointType.destination) {
+    } else if (current.type == WaypointType.destination) {
       provider.removeDestination();
     } else {
-      final idx = provider.waypoints.indexWhere((w) => w.id == wp.id);
+      final idx = provider.waypoints.indexWhere((w) => w.id == id);
       if (idx >= 0) provider.removeWaypoint(idx);
     }
   }
 
   // --- Clear route confirmation ---
   void _showClearConfirm() async {
-    final result = await Navigator.of(context).push<bool>(
-      PageRouteBuilder<bool>(
-        opaque: true,
-        pageBuilder: (_, __, ___) => const _ClearConfirmPage(),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 200),
-      ),
-    );
-    _mapController?.invalidateSize();
-    if (result == true && mounted) {
+    final result = await HtmlOverlay.showClearConfirm();
+    if (result && mounted) {
       context.read<NavigationProvider>().clearRoute();
     }
   }
 
   // --- All weather panel ---
   void _showAllWeather() async {
-    await Navigator.of(context).push(
-      PageRouteBuilder(
-        opaque: true,
-        pageBuilder: (_, __, ___) => const _AllWeatherPage(),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-        transitionDuration: const Duration(milliseconds: 200),
-      ),
-    );
-    _mapController?.invalidateSize();
+    final provider = context.read<NavigationProvider>();
+    await HtmlOverlay.showAllWeather(provider.allWaypoints);
   }
 
   // --- Feature toggles ---
@@ -147,7 +119,7 @@ class _MapScreenState extends State<MapScreen> {
             },
           ),
 
-          // Layer 2: Map controls (always visible)
+          // Layer 2: Map controls
           _buildTitlePanel(),
           _buildControlPanel(),
           _buildGpsButtons(),
@@ -361,10 +333,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 }
 
-// =============================================
-// Control button widget
-// =============================================
-
+// --- Control button widget ---
 class _ControlButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
@@ -419,560 +388,6 @@ class _ControlButton extends StatelessWidget {
                         : Colors.white70,
                   ),
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================
-// Shared UI helpers (file-level)
-// =============================================
-
-BoxDecoration _dialogDecoration() {
-  return BoxDecoration(
-    color: const Color(0xFF0D1F3C),
-    borderRadius: BorderRadius.circular(16),
-    border: Border.all(
-      color: const Color(0xFF00E5FF).withValues(alpha: 0.5),
-      width: 0.5,
-    ),
-    boxShadow: [
-      BoxShadow(
-        color: const Color(0xFF00E5FF).withValues(alpha: 0.2),
-        blurRadius: 20,
-      ),
-    ],
-  );
-}
-
-Widget _loadingCard(String text) {
-  return Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: const Color(0xFF0A1628),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: const Color(0xFF00E5FF).withValues(alpha: 0.2),
-        width: 0.5,
-      ),
-    ),
-    child: Center(
-      child: Text(text,
-          style: const TextStyle(color: Colors.white54)),
-    ),
-  );
-}
-
-Widget _weatherCard(WeatherData data) {
-  return Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: const Color(0xFF0A1628),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
-        width: 0.5,
-      ),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('天気',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF00E5FF))),
-        Divider(
-            color: const Color(0xFF00E5FF).withValues(alpha: 0.2)),
-        Row(
-          children: [
-            Text(data.weatherIcon,
-                style: const TextStyle(fontSize: 32)),
-            const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(data.weatherDescription,
-                    style: const TextStyle(
-                        fontSize: 16, color: Colors.white70)),
-                Text(
-                    '${data.currentTemperature.toStringAsFixed(1)}°C',
-                    style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white)),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        _infoRow(Icons.air, '風速',
-            '${data.currentWindSpeed.toStringAsFixed(1)} km/h'),
-        _infoRow(Icons.explore, '風向',
-            '${data.currentWindDirection.toStringAsFixed(0)}°'),
-        _infoRow(Icons.water_drop, '降水量',
-            '${data.currentPrecipitation.toStringAsFixed(1)} mm'),
-      ],
-    ),
-  );
-}
-
-Widget _marineCard(MarineData data) {
-  return Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(12),
-      gradient: const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [Color(0xFF0A1628), Color(0xFF0D2847)],
-      ),
-      border: Border.all(
-        color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
-        width: 0.5,
-      ),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('海洋気象',
-            style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF00E5FF))),
-        Divider(
-            color: const Color(0xFF00E5FF).withValues(alpha: 0.2)),
-        _infoRow(Icons.waves, '波高',
-            '${data.currentWaveHeight.toStringAsFixed(1)} m'),
-        _infoRow(Icons.waves, 'うねり高',
-            '${data.currentSwellWaveHeight.toStringAsFixed(1)} m'),
-        _infoRow(Icons.waves, '風浪高',
-            '${data.currentWindWaveHeight.toStringAsFixed(1)} m'),
-        _infoRow(Icons.timer, '波周期',
-            '${data.currentWavePeriod.toStringAsFixed(1)} s'),
-        _infoRow(Icons.navigation, '波向',
-            '${data.currentWaveDirection.toStringAsFixed(0)}°'),
-        _infoRow(Icons.thermostat, '海面温度',
-            '${data.currentSeaSurfaceTemperature.toStringAsFixed(1)}°C'),
-      ],
-    ),
-  );
-}
-
-Widget _infoRow(IconData icon, String label, String value) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 2),
-    child: Row(
-      children: [
-        Icon(icon, size: 16, color: const Color(0xFF00E5FF)),
-        const SizedBox(width: 8),
-        Text('$label: ',
-            style: const TextStyle(
-                color: Colors.white54, fontSize: 13)),
-        Text(value,
-            style: const TextStyle(
-                fontWeight: FontWeight.w500, color: Colors.white)),
-      ],
-    ),
-  );
-}
-
-// =============================================
-// Overlay Pages (pushed as opaque routes)
-// =============================================
-
-/// Waypoint type selector - shown when user taps the map
-class _WaypointSelectorPage extends StatelessWidget {
-  final LatLng position;
-  const _WaypointSelectorPage({required this.position});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A1628),
-      body: GestureDetector(
-        onTap: () => Navigator.pop(context),
-        behavior: HitTestBehavior.opaque,
-        child: Center(
-          child: GestureDetector(
-            onTap: () {}, // Absorb taps on the dialog itself
-            child: Container(
-              width: 260,
-              padding: const EdgeInsets.all(20),
-              decoration: _dialogDecoration(),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '地点を設定',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF00E5FF),
-                    ),
-                  ),
-                  Text(
-                    '${position.latitude.toStringAsFixed(4)}, ${position.longitude.toStringAsFixed(4)}',
-                    style: const TextStyle(
-                        fontSize: 11, color: Colors.white38),
-                  ),
-                  const SizedBox(height: 16),
-                  _option(context, Icons.play_circle,
-                      const Color(0xFF00E676), '出発地', 'departure'),
-                  const SizedBox(height: 8),
-                  _option(context, Icons.circle,
-                      const Color(0xFFFF9100), '経由地', 'waypoint'),
-                  const SizedBox(height: 8),
-                  _option(context, Icons.flag,
-                      const Color(0xFFFF5252), '目的地', 'destination'),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _option(BuildContext context, IconData icon, Color color,
-      String label, String result) {
-    return InkWell(
-      onTap: () => Navigator.pop(context, result),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0A1628),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: color.withValues(alpha: 0.3),
-            width: 0.5,
-          ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 12),
-            Text(label,
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 15)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Marker action panel - shown when user taps a waypoint marker
-class _MarkerActionPage extends StatelessWidget {
-  final String waypointId;
-  const _MarkerActionPage({required this.waypointId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A1628),
-      body: GestureDetector(
-        onTap: () => Navigator.pop(context),
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          children: [
-            const Spacer(),
-            GestureDetector(
-              onTap: () {}, // Absorb taps on the panel
-              child: Consumer<NavigationProvider>(
-                builder: (context, provider, _) {
-                  final wp = provider.allWaypoints
-                      .where((w) => w.id == waypointId)
-                      .firstOrNull;
-                  if (wp == null) {
-                    return const SizedBox.shrink();
-                  }
-                  return Container(
-                    constraints: BoxConstraints(
-                      maxHeight:
-                          MediaQuery.of(context).size.height * 0.7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D1F3C),
-                      borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(20)),
-                      border: Border(
-                        top: BorderSide(
-                            color: const Color(0xFF00E5FF)
-                                .withValues(alpha: 0.5),
-                            width: 0.5),
-                        left: BorderSide(
-                            color: const Color(0xFF00E5FF)
-                                .withValues(alpha: 0.5),
-                            width: 0.5),
-                        right: BorderSide(
-                            color: const Color(0xFF00E5FF)
-                                .withValues(alpha: 0.5),
-                            width: 0.5),
-                      ),
-                    ),
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Handle bar
-                          Center(
-                            child: Container(
-                              width: 40,
-                              height: 4,
-                              margin:
-                                  const EdgeInsets.only(bottom: 12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF00E5FF)
-                                    .withValues(alpha: 0.5),
-                                borderRadius:
-                                    BorderRadius.circular(2),
-                              ),
-                            ),
-                          ),
-                          // Title row
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      wp.displayName,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Color(0xFF00E5FF),
-                                      ),
-                                    ),
-                                    Text(
-                                      '${wp.position.latitude.toStringAsFixed(4)}, ${wp.position.longitude.toStringAsFixed(4)}',
-                                      style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.white38),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              IconButton(
-                                onPressed: () =>
-                                    Navigator.pop(context, 'delete'),
-                                icon: const Icon(Icons.delete,
-                                    color: Color(0xFFFF5252)),
-                                tooltip: '削除',
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Weather info
-                          if (wp.weatherData != null)
-                            _weatherCard(wp.weatherData!),
-                          if (wp.weatherData == null)
-                            _loadingCard('天気データ読み込み中...'),
-                          const SizedBox(height: 8),
-                          if (wp.marineData != null)
-                            _marineCard(wp.marineData!),
-                          if (wp.marineData == null)
-                            _loadingCard('海洋データ読み込み中...'),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Route clear confirmation dialog
-class _ClearConfirmPage extends StatelessWidget {
-  const _ClearConfirmPage();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A1628),
-      body: GestureDetector(
-        onTap: () => Navigator.pop(context, false),
-        behavior: HitTestBehavior.opaque,
-        child: Center(
-          child: GestureDetector(
-            onTap: () {},
-            child: Container(
-              width: 280,
-              padding: const EdgeInsets.all(20),
-              decoration: _dialogDecoration(),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('ルートクリア',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF00E5FF))),
-                  const SizedBox(height: 12),
-                  const Text('すべての地点を削除しますか？',
-                      style: TextStyle(color: Colors.white70)),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () =>
-                            Navigator.pop(context, false),
-                        child: const Text('キャンセル',
-                            style:
-                                TextStyle(color: Colors.white54)),
-                      ),
-                      const SizedBox(width: 8),
-                      TextButton(
-                        onPressed: () =>
-                            Navigator.pop(context, true),
-                        child: const Text('クリア',
-                            style: TextStyle(
-                                color: Color(0xFF00E5FF))),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// All-weather panel showing weather for every waypoint
-class _AllWeatherPage extends StatelessWidget {
-  const _AllWeatherPage();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0A1628),
-      body: SafeArea(
-        child: Consumer<NavigationProvider>(
-          builder: (context, provider, _) {
-            final allWaypoints = provider.allWaypoints;
-            if (allWaypoints.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('地点がありません',
-                        style: TextStyle(color: Colors.white54)),
-                    const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('戻る',
-                          style:
-                              TextStyle(color: Color(0xFF00E5FF))),
-                    ),
-                  ],
-                ),
-              );
-            }
-
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          '全地点の天気情報',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF00E5FF),
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close,
-                            color: Colors.white54),
-                      ),
-                    ],
-                  ),
-                ),
-                if (provider.isLoadingWeather)
-                  const Padding(
-                    padding: EdgeInsets.all(16),
-                    child: CircularProgressIndicator(
-                        color: Color(0xFF00E5FF)),
-                  ),
-                Expanded(
-                  child: DefaultTabController(
-                    length: allWaypoints.length,
-                    child: Column(
-                      children: [
-                        TabBar(
-                          isScrollable: true,
-                          labelColor: const Color(0xFF00E5FF),
-                          unselectedLabelColor: Colors.white54,
-                          indicatorColor: const Color(0xFF00E5FF),
-                          dividerColor: Colors.transparent,
-                          tabs: allWaypoints
-                              .map(
-                                  (wp) => Tab(text: wp.displayName))
-                              .toList(),
-                        ),
-                        Expanded(
-                          child: TabBarView(
-                            children: allWaypoints.map((wp) {
-                              return SingleChildScrollView(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${wp.position.latitude.toStringAsFixed(4)}, ${wp.position.longitude.toStringAsFixed(4)}',
-                                      style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.white38),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    if (wp.weatherData != null)
-                                      _weatherCard(
-                                          wp.weatherData!),
-                                    if (wp.weatherData == null)
-                                      _loadingCard(
-                                          '天気データ読み込み中...'),
-                                    const SizedBox(height: 8),
-                                    if (wp.marineData != null)
-                                      _marineCard(
-                                          wp.marineData!),
-                                    if (wp.marineData == null)
-                                      _loadingCard(
-                                          '海洋データ読み込み中...'),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
         ),
       ),
     );
