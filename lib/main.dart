@@ -6,6 +6,21 @@ import 'screens/settings_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // Show error details in release mode (instead of gray box)
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      child: Container(
+        color: Colors.black,
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Text(
+            'ERROR:\n${details.exception}\n\nSTACK:\n${details.stack}',
+            style: const TextStyle(color: Colors.red, fontSize: 12),
+          ),
+        ),
+      ),
+    );
+  };
   runApp(const BoatNaviApp());
 }
 

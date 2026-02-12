@@ -1,14 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:provider/provider.dart';
 import '../models/waypoint.dart';
 import '../models/weather_data.dart';
 import '../models/marine_data.dart';
 import '../providers/navigation_provider.dart';
-import '../widgets/map_widget.dart';
+import '../widgets/leaflet_map_widget.dart';
 import '../widgets/route_info_bar.dart';
 
-class MapScreen extends StatelessWidget {
+class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
+
+  @override
+  State<MapScreen> createState() => _MapScreenState();
+}
+
+class _MapScreenState extends State<MapScreen> {
+  bool _seaMapEnabled = false;
+  bool _gpsFollowEnabled = false;
+
+  void _toggleSeaMap() {
+    setState(() => _seaMapEnabled = !_seaMapEnabled);
+    final controller = LeafletMapWidget.controllerOf(context);
+    controller?.toggleSeaMap(_seaMapEnabled);
+  }
+
+  void _toggleGpsFollow() {
+    setState(() => _gpsFollowEnabled = !_gpsFollowEnabled);
+    if (_gpsFollowEnabled) {
+      _panToCurrentPosition();
+    }
+  }
+
+  void _panToCurrentPosition() {
+    final provider = context.read<NavigationProvider>();
+    final pos = provider.currentPosition;
+    if (pos != null) {
+      final controller = LeafletMapWidget.controllerOf(context);
+      controller?.panTo(pos.latitude, pos.longitude);
+    }
+  }
 
   void _showAllWeatherPanel(BuildContext context) {
     final provider = context.read<NavigationProvider>();
@@ -117,44 +148,56 @@ class MapScreen extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          // Full-screen map
-          const MapWidget(),
+          // Full-screen map (Leaflet.js via HtmlElementView)
+          Consumer<NavigationProvider>(
+            builder: (context, provider, child) {
+              // GPS follow: auto-pan when position changes
+              if (_gpsFollowEnabled && provider.currentPosition != null) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _panToCurrentPosition();
+                });
+              }
+              return const LeafletMapWidget();
+            },
+          ),
 
           // Top-left: App title panel
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             left: 12,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xDD0D1F3C),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
-                  width: 0.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF00E5FF).withValues(alpha: 0.1),
-                    blurRadius: 8,
+            child: PointerInterceptor(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xDD0D1F3C),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                    width: 0.5,
                   ),
-                ],
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.sailing, color: Color(0xFF00E5FF), size: 20),
-                  SizedBox(width: 6),
-                  Text(
-                    'Boat Navi',
-                    style: TextStyle(
-                      color: Color(0xFF00E5FF),
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00E5FF).withValues(alpha: 0.1),
+                      blurRadius: 8,
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.sailing, color: Color(0xFF00E5FF), size: 20),
+                    SizedBox(width: 6),
+                    Text(
+                      'Boat Navi',
+                      style: TextStyle(
+                        color: Color(0xFF00E5FF),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -163,119 +206,174 @@ class MapScreen extends StatelessWidget {
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,
             right: 12,
-            child: Consumer<NavigationProvider>(
-              builder: (context, provider, _) {
-                return Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xDD0D1F3C),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
-                      width: 0.5,
+            child: PointerInterceptor(
+              child: Consumer<NavigationProvider>(
+                builder: (context, provider, _) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xDD0D1F3C),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: const Color(0xFF00E5FF).withValues(alpha: 0.3),
+                        width: 0.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF00E5FF).withValues(alpha: 0.1),
+                          blurRadius: 8,
+                        ),
+                      ],
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF00E5FF).withValues(alpha: 0.1),
-                        blurRadius: 8,
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // AIS toggle
-                      _ControlButton(
-                        icon: Icons.directions_boat,
-                        tooltip: 'AIS船舶表示',
-                        isActive: provider.aisEnabled,
-                        isLoading: provider.isLoadingAis,
-                        onPressed: () => provider.toggleAis(),
-                        isTop: true,
-                      ),
-                      _divider(),
-                      // Weather
-                      _ControlButton(
-                        icon: Icons.wb_sunny,
-                        tooltip: '全地点の天気',
-                        isActive: false,
-                        isLoading: provider.isLoadingWeather,
-                        isVisible: provider.allWaypoints.isNotEmpty,
-                        onPressed: () => _showAllWeatherPanel(context),
-                      ),
-                      if (provider.allWaypoints.isNotEmpty) _divider(),
-                      // Clear route
-                      _ControlButton(
-                        icon: Icons.clear,
-                        tooltip: 'ルートクリア',
-                        isActive: false,
-                        isVisible: provider.allWaypoints.isNotEmpty,
-                        onPressed: () => _showClearDialog(context, provider),
-                      ),
-                      if (provider.allWaypoints.isNotEmpty) _divider(),
-                      // Settings
-                      _ControlButton(
-                        icon: Icons.settings,
-                        tooltip: '設定',
-                        isActive: false,
-                        onPressed: () =>
-                            Navigator.pushNamed(context, '/settings'),
-                        isBottom: true,
-                      ),
-                    ],
-                  ),
-                );
-              },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // AIS toggle
+                        _ControlButton(
+                          icon: Icons.directions_boat,
+                          tooltip: 'AIS船舶表示',
+                          isActive: provider.aisEnabled,
+                          isLoading: provider.isLoadingAis,
+                          onPressed: () => provider.toggleAis(),
+                          isTop: true,
+                        ),
+                        _divider(),
+                        // Sea map toggle
+                        _ControlButton(
+                          icon: Icons.map,
+                          tooltip: '海図表示',
+                          isActive: _seaMapEnabled,
+                          onPressed: _toggleSeaMap,
+                        ),
+                        _divider(),
+                        // Weather
+                        _ControlButton(
+                          icon: Icons.wb_sunny,
+                          tooltip: '全地点の天気',
+                          isActive: false,
+                          isLoading: provider.isLoadingWeather,
+                          isVisible: provider.allWaypoints.isNotEmpty,
+                          onPressed: () => _showAllWeatherPanel(context),
+                        ),
+                        if (provider.allWaypoints.isNotEmpty) _divider(),
+                        // Clear route
+                        _ControlButton(
+                          icon: Icons.delete_sweep,
+                          tooltip: 'ルートクリア',
+                          isActive: false,
+                          isVisible: provider.allWaypoints.isNotEmpty,
+                          onPressed: () => _showClearDialog(context, provider),
+                        ),
+                        if (provider.allWaypoints.isNotEmpty) _divider(),
+                        // Settings
+                        _ControlButton(
+                          icon: Icons.settings,
+                          tooltip: '設定',
+                          isActive: false,
+                          onPressed: () =>
+                              Navigator.pushNamed(context, '/settings'),
+                          isBottom: true,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ),
 
-          // Bottom-right: Current location FAB
+          // Bottom-right: GPS buttons
           Positioned(
             bottom: 100,
             right: 12,
-            child: Consumer<NavigationProvider>(
-              builder: (context, provider, _) {
-                if (provider.currentPosition == null ||
-                    provider.departure != null) {
-                  return const SizedBox.shrink();
-                }
-                return Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color:
-                            const Color(0xFF00E5FF).withValues(alpha: 0.3),
-                        blurRadius: 12,
-                        spreadRadius: 1,
+            child: PointerInterceptor(
+              child: Consumer<NavigationProvider>(
+                builder: (context, provider, _) {
+                  if (provider.currentPosition == null) {
+                    return const SizedBox.shrink();
+                  }
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // GPS follow toggle
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF00E5FF)
+                                  .withValues(alpha: 0.3),
+                              blurRadius: 12,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: FloatingActionButton.small(
+                          heroTag: 'gpsFollow',
+                          onPressed: _toggleGpsFollow,
+                          backgroundColor: _gpsFollowEnabled
+                              ? const Color(0xFF00E5FF)
+                              : const Color(0xFF0D1F3C),
+                          foregroundColor: _gpsFollowEnabled
+                              ? const Color(0xFF0D1F3C)
+                              : const Color(0xFF00E5FF),
+                          shape: CircleBorder(
+                            side: BorderSide(
+                              color: const Color(0xFF00E5FF)
+                                  .withValues(alpha: 0.5),
+                            ),
+                          ),
+                          child: Icon(_gpsFollowEnabled
+                              ? Icons.gps_fixed
+                              : Icons.gps_not_fixed),
+                        ),
                       ),
+                      const SizedBox(height: 8),
+                      // Set departure from current position
+                      if (provider.departure == null)
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF00E5FF)
+                                    .withValues(alpha: 0.3),
+                                blurRadius: 12,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: FloatingActionButton.small(
+                            heroTag: 'currentLoc',
+                            onPressed: () {
+                              provider.setDepartureFromCurrentPosition();
+                              _panToCurrentPosition();
+                            },
+                            backgroundColor: const Color(0xFF0D1F3C),
+                            foregroundColor: const Color(0xFF00E5FF),
+                            shape: CircleBorder(
+                              side: BorderSide(
+                                color: const Color(0xFF00E5FF)
+                                    .withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: const Icon(Icons.my_location),
+                          ),
+                        ),
                     ],
-                  ),
-                  child: FloatingActionButton.small(
-                    heroTag: 'currentLoc',
-                    onPressed: () {
-                      provider.setDepartureFromCurrentPosition();
-                    },
-                    backgroundColor: const Color(0xFF0D1F3C),
-                    foregroundColor: const Color(0xFF00E5FF),
-                    shape: CircleBorder(
-                      side: BorderSide(
-                        color:
-                            const Color(0xFF00E5FF).withValues(alpha: 0.5),
-                      ),
-                    ),
-                    child: const Icon(Icons.my_location),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
           ),
 
           // Bottom: Route info bar
-          const Positioned(
+          Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            child: RouteInfoBar(),
+            child: PointerInterceptor(
+              child: const RouteInfoBar(),
+            ),
           ),
         ],
       ),

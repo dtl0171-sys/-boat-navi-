@@ -37,14 +37,23 @@ class LocationService {
 
   void startTracking(void Function(LatLng) onPositionChanged) {
     _positionSubscription?.cancel();
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-      ),
-    ).listen((position) {
-      onPositionChanged(LatLng(position.latitude, position.longitude));
-    });
+    try {
+      _positionSubscription = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10,
+        ),
+      ).listen(
+        (position) {
+          onPositionChanged(LatLng(position.latitude, position.longitude));
+        },
+        onError: (e) {
+          // Ignore location errors silently
+        },
+      );
+    } catch (e) {
+      // Ignore if stream creation fails
+    }
   }
 
   void stopTracking() {
