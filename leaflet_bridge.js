@@ -37,6 +37,25 @@
       });
     },
 
+    // Pin colors per waypoint type
+    _pinColors: {
+      departure:   { fill: "#00C853", stroke: "#00E676", shadow: "rgba(0,200,83,0.5)" },
+      waypoint:    { fill: "#FF6D00", stroke: "#FF9100", shadow: "rgba(255,109,0,0.5)" },
+      destination: { fill: "#D50000", stroke: "#FF5252", shadow: "rgba(213,0,0,0.5)" },
+    },
+
+    _pinSvg: function (color, label) {
+      return '<div class="marker-pin">' +
+        '<svg width="34" height="48" viewBox="0 0 34 48">' +
+        '<filter id="ps"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="' + color.shadow + '" flood-opacity="0.7"/></filter>' +
+        '<path d="M17 47C17 47 33 29 33 17A16 16 0 0 0 1 17C1 29 17 47 17 47Z" ' +
+        'fill="' + color.fill + '" stroke="' + color.stroke + '" stroke-width="1" filter="url(#ps)"/>' +
+        '<circle cx="17" cy="17" r="9" fill="rgba(255,255,255,0.92)"/>' +
+        '</svg>' +
+        '<span class="pin-label" style="color:' + color.fill + '">' + label + '</span>' +
+        '</div>';
+    },
+
     updateMarkers: function (markersJson) {
       if (!map || !markerGroup) return;
       markerGroup.clearLayers();
@@ -48,11 +67,14 @@
         return;
       }
 
+      var self = this;
+
       for (var i = 0; i < markers.length; i++) {
         var m = markers[i];
-        var icon;
+        var icon, marker;
 
         if (m.type === "ais") {
+          // AIS vessel - rotated triangle
           var svgHtml =
             '<div class="marker-ais" style="transform:rotate(' +
             (m.cog || 0) +
@@ -71,31 +93,41 @@
 
           var aisMarker = L.marker([m.lat, m.lng], { icon: icon });
           var tip =
-            "<b>" +
-            (m.name || "Unknown") +
-            "</b><br>MMSI: " +
-            m.mmsi +
-            "<br>SOG: " +
-            (m.sog || 0).toFixed(1) +
-            " kt";
+            "<b>" + (m.name || "Unknown") +
+            "</b><br>MMSI: " + m.mmsi +
+            "<br>SOG: " + (m.sog || 0).toFixed(1) + " kt";
           aisMarker.bindTooltip(tip, {
             className: "ais-tooltip",
             direction: "top",
             offset: [0, -14],
           });
           markerGroup.addLayer(aisMarker);
+
+        } else if (m.type === "current") {
+          // Current position - small pulsing circle
+          icon = L.divIcon({
+            html: '<div class="marker-current"></div>',
+            className: "",
+            iconSize: [26, 26],
+            iconAnchor: [13, 13],
+          });
+          marker = L.marker([m.lat, m.lng], { icon: icon });
+          markerGroup.addLayer(marker);
+
         } else {
-          var cssClass = "marker-" + m.type;
+          // Departure / Waypoint / Destination - pin shape
+          var color = self._pinColors[m.type] || self._pinColors.waypoint;
           var label = m.label || "";
+          var html = self._pinSvg(color, label);
 
           icon = L.divIcon({
-            html: '<div class="' + cssClass + '">' + label + "</div>",
+            html: html,
             className: "",
-            iconSize: [44, 44],
-            iconAnchor: [22, 22],
+            iconSize: [34, 48],
+            iconAnchor: [17, 48],  // tip of pin
           });
 
-          var marker = L.marker([m.lat, m.lng], { icon: icon });
+          marker = L.marker([m.lat, m.lng], { icon: icon });
 
           if (m.id) {
             (function (id) {
