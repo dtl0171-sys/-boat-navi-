@@ -16,34 +16,28 @@
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
     crossorigin="" />
   <style>
+    /* Current position - pulsing circle */
     .marker-current {
-      width: 44px; height: 44px; border-radius: 50%;
-      background: radial-gradient(circle, #00E5FF, #0091EA);
-      box-shadow: 0 0 12px 2px rgba(0,229,255,0.6);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 22px; color: white;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #00E5FF;
+      border: 3px solid white;
+      box-shadow: 0 0 10px 3px rgba(0,229,255,0.5);
     }
-    .marker-departure {
-      width: 44px; height: 44px; border-radius: 50%;
-      background: radial-gradient(circle, #00E676, #00C853);
-      box-shadow: 0 0 10px 1px rgba(0,230,118,0.5);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 22px; color: white;
+    /* Pin marker container */
+    .marker-pin {
+      position: relative; width: 34px; height: 48px;
+      cursor: pointer;
     }
-    .marker-waypoint {
-      width: 40px; height: 40px; border-radius: 50%;
-      background: radial-gradient(circle, #FF9100, #FF6D00);
-      box-shadow: 0 0 8px 1px rgba(255,145,0,0.5);
+    .marker-pin svg { position: absolute; top: 0; left: 0; }
+    .marker-pin .pin-label {
+      position: absolute; top: 4px; left: 0;
+      width: 34px; height: 28px;
       display: flex; align-items: center; justify-content: center;
-      font-size: 14px; font-weight: bold; color: white;
+      color: white; font-weight: bold; font-size: 13px;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+      pointer-events: none;
     }
-    .marker-destination {
-      width: 44px; height: 44px; border-radius: 50%;
-      background: radial-gradient(circle, #FF5252, #D50000);
-      box-shadow: 0 0 10px 1px rgba(255,82,82,0.5);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 22px; color: white;
-    }
+    /* AIS vessel */
     .marker-ais {
       width: 28px; height: 28px;
       display: flex; align-items: center; justify-content: center;
