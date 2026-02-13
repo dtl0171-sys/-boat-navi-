@@ -56,19 +56,28 @@
     },
 
     updateMarkers: function (markersJson) {
-      if (!map || !markerGroup) return;
+      console.log("[LeafletBridge] updateMarkers called");
+      if (!map || !markerGroup) {
+        console.log("[LeafletBridge] map or markerGroup not ready");
+        return;
+      }
       markerGroup.clearLayers();
 
       var markers;
       try {
         markers = JSON.parse(markersJson);
       } catch (e) {
+        console.error("[LeafletBridge] JSON parse error:", e);
         return;
       }
+
+      console.log("[LeafletBridge] markers count:", markers.length);
 
       for (var i = 0; i < markers.length; i++) {
         var m = markers[i];
         var icon, marker;
+
+        console.log("[LeafletBridge] marker", i, "type:", m.type, "lat:", m.lat, "lng:", m.lng);
 
         if (m.type === "ais") {
           // AIS vessel - rotated triangle
