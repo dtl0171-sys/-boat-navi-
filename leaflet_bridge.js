@@ -8,6 +8,24 @@
   var seaMapLayer = null;
   var seaMapEnabled = false;
 
+  // Pin colors per waypoint type (closure scope, not on `this`)
+  var pinColors = {
+    departure:   { fill: "#00C853", stroke: "#00E676" },
+    waypoint:    { fill: "#FF6D00", stroke: "#FF9100" },
+    destination: { fill: "#D50000", stroke: "#FF5252" },
+  };
+
+  function pinSvg(color, label) {
+    return '<div class="marker-pin">' +
+      '<svg width="34" height="48" viewBox="0 0 34 48">' +
+      '<path d="M17 47C17 47 33 29 33 17A16 16 0 0 0 1 17C1 29 17 47 17 47Z" ' +
+      'fill="' + color.fill + '" stroke="' + color.stroke + '" stroke-width="1.5"/>' +
+      '<circle cx="17" cy="17" r="9" fill="rgba(255,255,255,0.92)"/>' +
+      '</svg>' +
+      '<span class="pin-label" style="color:' + color.fill + '">' + label + '</span>' +
+      '</div>';
+  }
+
   window.LeafletBridge = {
     initMap: function (containerId, lat, lng, zoom) {
       var el = document.getElementById(containerId);
@@ -37,25 +55,6 @@
       });
     },
 
-    // Pin colors per waypoint type
-    _pinColors: {
-      departure:   { fill: "#00C853", stroke: "#00E676", shadow: "rgba(0,200,83,0.5)" },
-      waypoint:    { fill: "#FF6D00", stroke: "#FF9100", shadow: "rgba(255,109,0,0.5)" },
-      destination: { fill: "#D50000", stroke: "#FF5252", shadow: "rgba(213,0,0,0.5)" },
-    },
-
-    _pinSvg: function (color, label) {
-      return '<div class="marker-pin">' +
-        '<svg width="34" height="48" viewBox="0 0 34 48">' +
-        '<filter id="ps"><feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="' + color.shadow + '" flood-opacity="0.7"/></filter>' +
-        '<path d="M17 47C17 47 33 29 33 17A16 16 0 0 0 1 17C1 29 17 47 17 47Z" ' +
-        'fill="' + color.fill + '" stroke="' + color.stroke + '" stroke-width="1" filter="url(#ps)"/>' +
-        '<circle cx="17" cy="17" r="9" fill="rgba(255,255,255,0.92)"/>' +
-        '</svg>' +
-        '<span class="pin-label" style="color:' + color.fill + '">' + label + '</span>' +
-        '</div>';
-    },
-
     updateMarkers: function (markersJson) {
       if (!map || !markerGroup) return;
       markerGroup.clearLayers();
@@ -66,8 +65,6 @@
       } catch (e) {
         return;
       }
-
-      var self = this;
 
       for (var i = 0; i < markers.length; i++) {
         var m = markers[i];
@@ -116,9 +113,9 @@
 
         } else {
           // Departure / Waypoint / Destination - pin shape
-          var color = self._pinColors[m.type] || self._pinColors.waypoint;
+          var color = pinColors[m.type] || pinColors.waypoint;
           var label = m.label || "";
-          var html = self._pinSvg(color, label);
+          var html = pinSvg(color, label);
 
           icon = L.divIcon({
             html: html,
