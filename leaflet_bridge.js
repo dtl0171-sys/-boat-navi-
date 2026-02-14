@@ -46,28 +46,7 @@
 
       markerGroup = L.layerGroup().addTo(map);
 
-      // Debug: permanent test marker at map center
-      var testIcon = L.divIcon({
-        html: '<div style="background:red;width:24px;height:24px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.4);"></div>',
-        className: "",
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-      });
-      L.marker([lat, lng], { icon: testIcon }).addTo(map);
-      console.log("[LeafletBridge] test marker added at", lat, lng);
-
       map.on("click", function (e) {
-        console.log("[LeafletBridge] map click:", e.latlng.lat, e.latlng.lng);
-
-        // Debug: add blue dot at click location to verify markers work
-        var dotIcon = L.divIcon({
-          html: '<div style="background:#00E5FF;width:16px;height:16px;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>',
-          className: "",
-          iconSize: [20, 20],
-          iconAnchor: [10, 10],
-        });
-        L.marker([e.latlng.lat, e.latlng.lng], { icon: dotIcon }).addTo(map);
-
         if (window._dartOnMapTap) {
           window._dartOnMapTap(e.latlng.lat, e.latlng.lng);
         }
