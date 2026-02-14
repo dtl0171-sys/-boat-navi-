@@ -1,6 +1,9 @@
+import 'dart:convert';
+import 'dart:js_interop';
 import 'package:flutter/material.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import 'package:web/web.dart' as web;
 import '../models/waypoint.dart';
 import '../providers/navigation_provider.dart';
 import '../interop/leaflet_map_controller.dart';
@@ -28,7 +31,10 @@ class _MapScreenState extends State<MapScreen> {
   void initState() {
     super.initState();
     _htmlControls.init(
-      onAisToggle: () => context.read<NavigationProvider>().toggleAis(),
+      onAisToggle: () {
+        context.read<NavigationProvider>().toggleAis();
+        _syncMap();
+      },
       onSeaMapToggle: _toggleSeaMap,
       onAllWeather: _showAllWeather,
       onClearRoute: _showClearConfirm,
@@ -37,14 +43,154 @@ class _MapScreenState extends State<MapScreen> {
       onSetDeparture: () {
         context.read<NavigationProvider>().setDepartureFromCurrentPosition();
         _panToCurrentPosition();
+        _syncMap();
       },
     );
+    _setupDomListeners();
+  }
+
+  /// Listen for map tap and marker tap events dispatched by leaflet_bridge.js.
+  /// Uses DOM events instead of @JS callbacks to avoid dart2js $flags errors.
+  void _setupDomListeners() {
+    final syncEl = web.document.getElementById('boat-sync');
+    if (syncEl == null) return;
+
+    syncEl.addEventListener(
+        'maptap',
+        ((JSAny? e) {
+          if (!mounted) return;
+          final latStr = syncEl.getAttribute('data-tap-lat');
+          final lngStr = syncEl.getAttribute('data-tap-lng');
+          if (latStr == null || lngStr == null) return;
+          final lat = double.tryParse(latStr);
+          final lng = double.tryParse(lngStr);
+          if (lat == null || lng == null) return;
+          _onMapTap(lat, lng);
+        }).toJS);
+
+    syncEl.addEventListener(
+        'markertap',
+        ((JSAny? e) {
+          if (!mounted) return;
+          final id = syncEl.getAttribute('data-marker-id');
+          if (id == null) return;
+          _onMarkerTap(id);
+        }).toJS);
   }
 
   @override
   void dispose() {
     _htmlControls.dispose();
     super.dispose();
+  }
+
+  /// Sync markers/route/bounds to JS via DOM attributes + custom event.
+  /// Avoids dart2js @JS interop $flags issues entirely.
+  void _syncMap() {
+    try {
+      final syncEl = web.document.getElementById('boat-sync');
+      if (syncEl == null) {
+        _showDebug('ERR: #boat-sync not found');
+        return;
+      }
+
+      final provider = context.read<NavigationProvider>();
+
+      // Build markers JSON
+      final markers = <Map<String, dynamic>>[];
+      final pos = provider.currentPosition;
+      if (pos != null) {
+        markers.add({
+          'type': 'current',
+          'lat': pos.latitude,
+          'lng': pos.longitude,
+          'label': '\u26F5',
+        });
+      }
+      final dep = provider.departure;
+      if (dep != null) {
+        markers.add({
+          'type': 'departure',
+          'id': dep.id,
+          'lat': dep.position.latitude,
+          'lng': dep.position.longitude,
+          'label': '\u25B6',
+        });
+      }
+      for (int i = 0; i < provider.waypoints.length; i++) {
+        final wp = provider.waypoints[i];
+        markers.add({
+          'type': 'waypoint',
+          'id': wp.id,
+          'lat': wp.position.latitude,
+          'lng': wp.position.longitude,
+          'label': '${i + 1}',
+        });
+      }
+      final dest = provider.destination;
+      if (dest != null) {
+        markers.add({
+          'type': 'destination',
+          'id': dest.id,
+          'lat': dest.position.latitude,
+          'lng': dest.position.longitude,
+          'label': '\u2691',
+        });
+      }
+      if (provider.aisEnabled) {
+        for (final v in provider.aisVessels) {
+          markers.add({
+            'type': 'ais',
+            'lat': v.lat,
+            'lng': v.lon,
+            'cog': v.cog,
+            'name': v.name,
+            'mmsi': v.mmsi,
+            'sog': v.sog,
+          });
+        }
+      }
+
+      // Set data as DOM attributes (plain strings, no dart2js wrapping)
+      syncEl.setAttribute('data-markers', jsonEncode(markers));
+
+      // Route + bounds
+      final allWp = provider.allWaypoints;
+      final points = allWp
+          .map((wp) => [wp.position.latitude, wp.position.longitude])
+          .toList();
+      final pointsJson = jsonEncode(points);
+      syncEl.setAttribute('data-route', pointsJson);
+      syncEl.setAttribute('data-bounds',
+          points.isNotEmpty ? pointsJson : '');
+
+      // Dispatch custom event to trigger JS listener
+      syncEl.dispatchEvent(web.Event('boatsync'));
+
+      _showDebug('OK: ${markers.length} markers');
+    } catch (e) {
+      _showDebug('ERR: $e');
+    }
+  }
+
+  void _showDebug(String msg) {
+    try {
+      final body = web.document.body;
+      if (body == null) return;
+      final existing = web.document.getElementById('sync-debug');
+      if (existing != null) existing.remove();
+      final div = web.document.createElement('div') as web.HTMLDivElement;
+      div.id = 'sync-debug';
+      div.style.cssText =
+          'position:fixed;bottom:80px;left:10px;background:rgba(0,0,0,0.85);'
+          'color:#0f0;padding:8px 14px;z-index:999999;font:12px monospace;'
+          'border-radius:6px;border:1px solid #0f0;pointer-events:none;';
+      div.textContent = msg;
+      body.appendChild(div);
+      Future.delayed(const Duration(seconds: 6), () {
+        if (div.parentElement != null) div.remove();
+      });
+    } catch (_) {}
   }
 
   // --- Map tap → show HTML overlay for waypoint selection ---
@@ -60,6 +206,8 @@ class _MapScreenState extends State<MapScreen> {
       case 'destination':
         provider.setDestination(LatLng(lat, lng));
     }
+    // Directly sync map - don't rely on Consumer chain
+    _syncMap();
   }
 
   // --- Marker tap → show HTML overlay for marker actions ---
@@ -86,6 +234,8 @@ class _MapScreenState extends State<MapScreen> {
       final idx = provider.waypoints.indexWhere((w) => w.id == id);
       if (idx >= 0) provider.removeWaypoint(idx);
     }
+    // Directly sync map after deletion
+    _syncMap();
   }
 
   // --- Clear route confirmation ---
@@ -93,6 +243,7 @@ class _MapScreenState extends State<MapScreen> {
     final result = await HtmlOverlay.showClearConfirm();
     if (result && mounted) {
       context.read<NavigationProvider>().clearRoute();
+      _syncMap();
     }
   }
 
@@ -123,7 +274,10 @@ class _MapScreenState extends State<MapScreen> {
   void _openSettings() async {
     _htmlControls.hide();
     await Navigator.pushNamed(context, '/settings');
-    if (mounted) _htmlControls.show();
+    if (mounted) {
+      _htmlControls.show();
+      _syncMap();
+    }
   }
 
   @override
@@ -156,8 +310,6 @@ class _MapScreenState extends State<MapScreen> {
 
           return LeafletMapWidget(
             key: _mapKey,
-            onMapTap: _onMapTap,
-            onMarkerTap: _onMarkerTap,
           );
         },
       ),

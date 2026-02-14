@@ -145,7 +145,7 @@ class HtmlControls {
     text.textContent = 'Boat Navi';
     panel.appendChild(text);
 
-    web.document.body!.appendChild(panel);
+    web.document.body?.appendChild(panel);
     _titlePanel = panel;
   }
 
@@ -216,7 +216,7 @@ class HtmlControls {
         onTap: onSettings, radius: '0 0 12px 12px');
     panel.appendChild(settingsBtn);
 
-    web.document.body!.appendChild(panel);
+    web.document.body?.appendChild(panel);
     _controlPanel = panel;
   }
 
@@ -253,7 +253,7 @@ class HtmlControls {
     _on(_setDepartBtn!, 'click', onSetDeparture);
     panel.appendChild(_setDepartBtn!);
 
-    web.document.body!.appendChild(panel);
+    web.document.body?.appendChild(panel);
     _gpsPanel = panel;
   }
 
@@ -263,7 +263,7 @@ class HtmlControls {
     _routeBar = _div(
         'position:fixed;bottom:0;left:0;right:0;z-index:$_z;'
         'pointer-events:auto;display:none;font-family:$_font;');
-    web.document.body!.appendChild(_routeBar!);
+    web.document.body?.appendChild(_routeBar!);
   }
 
   // --- State Update Helpers ---

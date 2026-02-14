@@ -31,8 +31,3 @@ external void jsInvalidateSize();
 @JS('LeafletBridge.dispose')
 external void jsDispose();
 
-@JS('_dartOnMapTap')
-external set dartOnMapTap(JSFunction? callback);
-
-@JS('_dartOnMarkerTap')
-external set dartOnMarkerTap(JSFunction? callback);

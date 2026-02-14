@@ -47,28 +47,38 @@
       markerGroup = L.layerGroup().addTo(map);
 
       map.on("click", function (e) {
-        console.log("[LeafletBridge] map click:", e.latlng.lat, e.latlng.lng,
-          "_dartOnMapTap exists:", !!window._dartOnMapTap);
-        if (window._dartOnMapTap) {
-          window._dartOnMapTap(e.latlng.lat, e.latlng.lng);
+        var syncEl = document.getElementById("boat-sync");
+        if (syncEl) {
+          syncEl.setAttribute("data-tap-lat", "" + e.latlng.lat);
+          syncEl.setAttribute("data-tap-lng", "" + e.latlng.lng);
+          syncEl.dispatchEvent(new Event("maptap"));
         }
       });
     },
 
     updateMarkers: function (markersJson) {
-      if (!map || !markerGroup) return;
+      console.log("[LeafletBridge] updateMarkers called");
+      if (!map || !markerGroup) {
+        console.log("[LeafletBridge] map or markerGroup not ready");
+        return;
+      }
       markerGroup.clearLayers();
 
       var markers;
       try {
         markers = JSON.parse(markersJson);
       } catch (e) {
+        console.error("[LeafletBridge] JSON parse error:", e);
         return;
       }
+
+      console.log("[LeafletBridge] markers count:", markers.length);
 
       for (var i = 0; i < markers.length; i++) {
         var m = markers[i];
         var icon, marker;
+
+        console.log("[LeafletBridge] marker", i, "type:", m.type, "lat:", m.lat, "lng:", m.lng);
 
         if (m.type === "ais") {
           // AIS vessel - rotated triangle
@@ -130,8 +140,10 @@
             (function (id) {
               marker.on("click", function (e) {
                 L.DomEvent.stopPropagation(e);
-                if (window._dartOnMarkerTap) {
-                  window._dartOnMarkerTap(id);
+                var syncEl = document.getElementById("boat-sync");
+                if (syncEl) {
+                  syncEl.setAttribute("data-marker-id", id);
+                  syncEl.dispatchEvent(new Event("markertap"));
                 }
               });
             })(m.id);
@@ -273,4 +285,25 @@
       }
     },
   };
+})();
+
+// DOM-based sync: Dart sets attributes on #boat-sync then dispatches 'sync' event.
+// This avoids dart2js @JS interop $flags issues entirely.
+(function () {
+  var syncEl = document.getElementById("boat-sync");
+  if (!syncEl) return;
+  syncEl.addEventListener("boatsync", function () {
+    var m = syncEl.getAttribute("data-markers");
+    var r = syncEl.getAttribute("data-route");
+    var b = syncEl.getAttribute("data-bounds");
+    if (m && window.LeafletBridge) {
+      try { window.LeafletBridge.updateMarkers(m); } catch (e) { console.error("updateMarkers error:", e); }
+    }
+    if (r && window.LeafletBridge) {
+      try { window.LeafletBridge.updateRoute(r); } catch (e) { console.error("updateRoute error:", e); }
+    }
+    if (b && b.length > 2 && window.LeafletBridge) {
+      try { window.LeafletBridge.fitBounds(b); } catch (e) { console.error("fitBounds error:", e); }
+    }
+  });
 })();

@@ -120,7 +120,7 @@ class HtmlOverlay {
     addOpt('\u2691', '#FF5252', '目的地', 'destination');
 
     overlay.appendChild(dialog);
-    web.document.body!.appendChild(overlay);
+    web.document.body?.appendChild(overlay);
     return completer.future;
   }
 
@@ -204,7 +204,7 @@ class HtmlOverlay {
     }
 
     overlay.appendChild(panel);
-    web.document.body!.appendChild(overlay);
+    web.document.body?.appendChild(overlay);
     return completer.future;
   }
 
@@ -259,7 +259,7 @@ class HtmlOverlay {
 
     dialog.appendChild(btnRow);
     overlay.appendChild(dialog);
-    web.document.body!.appendChild(overlay);
+    web.document.body?.appendChild(overlay);
     return completer.future;
   }
 
@@ -310,7 +310,7 @@ class HtmlOverlay {
       panel.appendChild(_text('地点がありません',
           'color:rgba(255,255,255,0.54);text-align:center;padding:32px;'));
       overlay.appendChild(panel);
-      web.document.body!.appendChild(overlay);
+      web.document.body?.appendChild(overlay);
       return completer.future;
     }
 
@@ -375,7 +375,7 @@ class HtmlOverlay {
     panel.appendChild(tabBar);
     panel.appendChild(contentContainer);
     overlay.appendChild(panel);
-    web.document.body!.appendChild(overlay);
+    web.document.body?.appendChild(overlay);
     return completer.future;
   }
 
