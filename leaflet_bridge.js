@@ -282,14 +282,23 @@
   };
 })();
 
-// Global wrapper functions for Dart interop
-// (avoids dot-path @JS annotation issues in dart2js)
-window.bridgeUpdateMarkers = function(json) {
-  if (window.LeafletBridge) window.LeafletBridge.updateMarkers(json);
-};
-window.bridgeUpdateRoute = function(json) {
-  if (window.LeafletBridge) window.LeafletBridge.updateRoute(json);
-};
-window.bridgeFitBounds = function(json) {
-  if (window.LeafletBridge) window.LeafletBridge.fitBounds(json);
-};
+// DOM-based sync: Dart sets attributes on #boat-sync then dispatches 'sync' event.
+// This avoids dart2js @JS interop $flags issues entirely.
+(function () {
+  var syncEl = document.getElementById("boat-sync");
+  if (!syncEl) return;
+  syncEl.addEventListener("boatsync", function () {
+    var m = syncEl.getAttribute("data-markers");
+    var r = syncEl.getAttribute("data-route");
+    var b = syncEl.getAttribute("data-bounds");
+    if (m && window.LeafletBridge) {
+      try { window.LeafletBridge.updateMarkers(m); } catch (e) { console.error("updateMarkers error:", e); }
+    }
+    if (r && window.LeafletBridge) {
+      try { window.LeafletBridge.updateRoute(r); } catch (e) { console.error("updateRoute error:", e); }
+    }
+    if (b && b.length > 2 && window.LeafletBridge) {
+      try { window.LeafletBridge.fitBounds(b); } catch (e) { console.error("fitBounds error:", e); }
+    }
+  });
+})();
