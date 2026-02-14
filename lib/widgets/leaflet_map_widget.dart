@@ -23,7 +23,11 @@ class LeafletMapWidgetState extends State<LeafletMapWidget> {
   @override
   void initState() {
     super.initState();
-    _registerFactory();
+    try {
+      _registerFactory();
+    } catch (e) {
+      print('registerFactory error: $e');
+    }
   }
 
   void _registerFactory() {
@@ -43,9 +47,13 @@ class LeafletMapWidgetState extends State<LeafletMapWidget> {
     if (_mapReady) return;
     Future.delayed(const Duration(milliseconds: 300), () {
       if (!mounted) return;
-      _controller.initMap(_containerId);
-      if (mounted) {
-        setState(() => _mapReady = true);
+      try {
+        _controller.initMap(_containerId);
+        if (mounted) {
+          setState(() => _mapReady = true);
+        }
+      } catch (e) {
+        print('initMap error: $e');
       }
     });
   }

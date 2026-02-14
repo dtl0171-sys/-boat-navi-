@@ -295,14 +295,13 @@ class _MapScreenState extends State<MapScreen> {
     return Scaffold(
       body: Consumer<NavigationProvider>(
         builder: (context, provider, child) {
-          if (_gpsFollowEnabled && provider.currentPosition != null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _panToCurrentPosition();
-            });
-          }
-
-          // Update HTML controls with current provider state
           try {
+            if (_gpsFollowEnabled && provider.currentPosition != null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _panToCurrentPosition();
+              });
+            }
+
             _htmlControls.updateState(
               aisEnabled: provider.aisEnabled,
               aisLoading: provider.isLoadingAis,
@@ -319,7 +318,7 @@ class _MapScreenState extends State<MapScreen> {
               speedUnitLabel: provider.speedUnitLabel,
             );
           } catch (e) {
-            print('updateState error: $e');
+            print('Consumer builder error: $e');
           }
 
           return LeafletMapWidget(

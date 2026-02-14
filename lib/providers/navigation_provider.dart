@@ -55,9 +55,11 @@ class NavigationProvider extends ChangeNotifier {
 
   List<Waypoint> get allWaypoints {
     final list = <Waypoint>[];
-    if (_departure != null) list.add(_departure!);
+    final dep = _departure;
+    if (dep != null) list.add(dep);
     list.addAll(_waypoints);
-    if (_destination != null) list.add(_destination!);
+    final dest = _destination;
+    if (dest != null) list.add(dest);
     return list;
   }
 
@@ -148,10 +150,11 @@ class NavigationProvider extends ChangeNotifier {
   }
 
   void setDepartureFromCurrentPosition() {
-    if (_currentPosition == null) return;
+    final pos = _currentPosition;
+    if (pos == null) return;
     _departure = Waypoint(
       id: 'dep_${_waypointCounter++}',
-      position: _currentPosition!,
+      position: pos,
       type: WaypointType.departure,
       name: '現在地',
     );
@@ -172,8 +175,9 @@ class NavigationProvider extends ChangeNotifier {
   }
 
   void setDestination(LatLng position) {
-    if (_destination != null) {
-      _waypoints.add(_destination!.copyWith(
+    final oldDest = _destination;
+    if (oldDest != null) {
+      _waypoints.add(oldDest.copyWith(
         type: WaypointType.waypoint,
         id: 'wp_${_waypointCounter++}',
       ));

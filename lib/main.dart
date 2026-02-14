@@ -16,8 +16,11 @@ void main() {
           padding: const EdgeInsets.all(16),
           child: SingleChildScrollView(
             child: Text(
-              'ERROR:\n${details.exception}\n\nSTACK:\n${details.stack}',
-              style: const TextStyle(color: Colors.red, fontSize: 12),
+              'ERROR: ${details.exception}\n'
+              'CONTEXT: ${details.context}\n'
+              'LIBRARY: ${details.library}\n'
+              'STACK: ${details.stack}',
+              style: const TextStyle(color: Colors.red, fontSize: 11),
             ),
           ),
         ),
