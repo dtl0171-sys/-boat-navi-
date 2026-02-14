@@ -281,3 +281,15 @@
     },
   };
 })();
+
+// Global wrapper functions for Dart interop
+// (avoids dot-path @JS annotation issues in dart2js)
+window.bridgeUpdateMarkers = function(json) {
+  if (window.LeafletBridge) window.LeafletBridge.updateMarkers(json);
+};
+window.bridgeUpdateRoute = function(json) {
+  if (window.LeafletBridge) window.LeafletBridge.updateRoute(json);
+};
+window.bridgeFitBounds = function(json) {
+  if (window.LeafletBridge) window.LeafletBridge.fitBounds(json);
+};
