@@ -37715,13 +37715,15 @@ if(r!=null)r.remove()
 s=s.d
 if(s!=null)s.remove()
 this.au()},
-oA(){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2=this
+oA(){var s,r,q,p,o,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2=this,a3="start"
 try{f=self
 s=f.document.getElementById("boat-sync")
 if(s==null){a2.CI("ERR: #boat-sync not found")
-return}e=a2.c
+return}a3="provider"
+e=a2.c
 e.toString
 r=A.iJ(e,!1,t.W)
+a3="markers"
 q=A.b([],t.H7)
 p=r.e
 if(p!=null)J.et(q,A.ae(["type","current","lat",p.a,"lng",p.b,"label","\u26f5"],t.N,t.z))
@@ -37733,8 +37735,11 @@ a.$flags=3
 m=a[n]
 J.et(q,A.ae(["type","waypoint","id",m.a,"lat",m.b.a,"lng",m.b.b,"label",A.i(n+1)],d,c))}l=r.w
 if(l!=null)J.et(q,A.ae(["type","destination","id",l.a,"lat",l.b.a,"lng",l.b.b,"label","\u2691"],d,c))
+a3="ais"
 if(r.ax)for(e=A.lz(r.ay,t.BX),b=e.length,a0=0;a0<b;++a0){k=e[a0]
-J.et(q,A.ae(["type","ais","lat",k.c,"lng",k.d,"cog",k.f,"name",k.b,"mmsi",k.a,"sog",k.e],d,c))}s.setAttribute("data-markers",B.b9.EU(q,null))
+J.et(q,A.ae(["type","ais","lat",k.c,"lng",k.d,"cog",k.f,"name",k.b,"mmsi",k.a,"sog",k.e],d,c))}a3="setMarkers"
+s.setAttribute("data-markers",B.b9.EU(q,null))
+a3="route"
 j=r.gmR()
 e=j
 d=A.U(e).i("ac<1,M<E>>")
@@ -37743,9 +37748,10 @@ h=B.b9.EU(i,null)
 s.setAttribute("data-route",h)
 e=J.cB(i)!==0?h:""
 s.setAttribute("data-bounds",e)
+a3="dispatch"
 s.dispatchEvent(new f.Event("boatsync"))
 a2.CI("OK: "+J.cB(q)+" markers")}catch(a1){g=A.a2(a1)
-a2.CI("ERR: "+A.i(g))}},
+a2.CI("ERR["+A.i(a3)+"]: "+A.i(g))}},
 CI(a){var s,r,q,p,o
 try{p=self
 s=p.document.body
