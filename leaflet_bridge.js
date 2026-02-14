@@ -47,8 +47,11 @@
       markerGroup = L.layerGroup().addTo(map);
 
       map.on("click", function (e) {
-        if (window._dartOnMapTap) {
-          window._dartOnMapTap(e.latlng.lat, e.latlng.lng);
+        var syncEl = document.getElementById("boat-sync");
+        if (syncEl) {
+          syncEl.setAttribute("data-tap-lat", "" + e.latlng.lat);
+          syncEl.setAttribute("data-tap-lng", "" + e.latlng.lng);
+          syncEl.dispatchEvent(new Event("maptap"));
         }
       });
     },
@@ -137,8 +140,10 @@
             (function (id) {
               marker.on("click", function (e) {
                 L.DomEvent.stopPropagation(e);
-                if (window._dartOnMarkerTap) {
-                  window._dartOnMarkerTap(id);
+                var syncEl = document.getElementById("boat-sync");
+                if (syncEl) {
+                  syncEl.setAttribute("data-marker-id", id);
+                  syncEl.dispatchEvent(new Event("markertap"));
                 }
               });
             })(m.id);
