@@ -165,16 +165,49 @@
 
       if (points.length < 2) return;
 
+      // Try sea routing if library is loaded
+      if (window.searouteCalc) {
+        var allCoords = [];
+        var totalSeaKm = 0;
+        var ok = true;
+        for (var i = 0; i < points.length - 1; i++) {
+          var o = { type: "Feature", geometry: { type: "Point", coordinates: [points[i][1], points[i][0]] } };
+          var d = { type: "Feature", geometry: { type: "Point", coordinates: [points[i+1][1], points[i+1][0]] } };
+          try {
+            var seg = window.searouteCalc(o, d, "km");
+            if (seg && seg.geometry && seg.geometry.coordinates && seg.geometry.coordinates.length > 0) {
+              var coords = seg.geometry.coordinates;
+              var start = (allCoords.length > 0) ? 1 : 0;
+              for (var j = start; j < coords.length; j++) {
+                allCoords.push([coords[j][1], coords[j][0]]);
+              }
+              if (seg.properties && seg.properties.length) {
+                totalSeaKm += seg.properties.length;
+              }
+            } else { ok = false; break; }
+          } catch (e) { ok = false; break; }
+        }
+        if (ok && allCoords.length >= 2) {
+          routeLine = L.polyline(allCoords, {
+            color: "#00E5FF", weight: 3, opacity: 0.8,
+          }).addTo(map);
+          // Report sea distance back to Dart
+          var syncEl = document.getElementById("boat-sync");
+          if (syncEl) syncEl.setAttribute("data-sea-distance", "" + totalSeaKm);
+          return;
+        }
+      }
+
+      // Fallback: straight lines
       var latlngs = [];
       for (var i = 0; i < points.length; i++) {
         latlngs.push([points[i][0], points[i][1]]);
       }
-
       routeLine = L.polyline(latlngs, {
-        color: "#00E5FF",
-        weight: 3,
-        opacity: 0.8,
+        color: "#00E5FF", weight: 3, opacity: 0.8,
       }).addTo(map);
+      var syncEl = document.getElementById("boat-sync");
+      if (syncEl) syncEl.removeAttribute("data-sea-distance");
     },
 
     fitBounds: function (pointsJson) {

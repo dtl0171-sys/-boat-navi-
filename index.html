@@ -106,7 +106,17 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""></script>
   <div id="boat-sync" style="display:none"></div>
-  <script src="leaflet_bridge.js?v=7"></script>
+  <script type="module">
+    // Load sea routing library (async, non-blocking)
+    try {
+      const mod = await import('https://esm.sh/searoute-js@1.2.1');
+      window.searouteCalc = mod.default || mod;
+      console.log('[SeaRoute] loaded');
+    } catch(e) {
+      console.warn('[SeaRoute] unavailable, using straight lines:', e);
+    }
+  </script>
+  <script src="leaflet_bridge.js?v=8"></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
