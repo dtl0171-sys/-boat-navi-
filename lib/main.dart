@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/navigation_provider.dart';
@@ -5,23 +6,31 @@ import 'screens/map_screen.dart';
 import 'screens/settings_screen.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  // Show error details in release mode (instead of gray box)
-  ErrorWidget.builder = (FlutterErrorDetails details) {
-    return Material(
-      child: Container(
-        color: Colors.black,
-        padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Text(
-            'ERROR:\n${details.exception}\n\nSTACK:\n${details.stack}',
-            style: const TextStyle(color: Colors.red, fontSize: 12),
+  runZonedGuarded(() {
+    WidgetsFlutterBinding.ensureInitialized();
+    // Show error details in release mode (instead of gray box)
+    ErrorWidget.builder = (FlutterErrorDetails details) {
+      return Material(
+        child: Container(
+          color: Colors.black,
+          padding: const EdgeInsets.all(16),
+          child: SingleChildScrollView(
+            child: Text(
+              'ERROR:\n${details.exception}\n\nSTACK:\n${details.stack}',
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
           ),
         ),
-      ),
-    );
-  };
-  runApp(const BoatNaviApp());
+      );
+    };
+    FlutterError.onError = (FlutterErrorDetails details) {
+      FlutterError.presentError(details);
+    };
+    runApp(const BoatNaviApp());
+  }, (error, stackTrace) {
+    // Catch uncaught async errors - log but don't crash
+    print('Uncaught error: $error\n$stackTrace');
+  });
 }
 
 class BoatNaviApp extends StatelessWidget {

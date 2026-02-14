@@ -30,23 +30,33 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
-    _htmlControls.init(
-      onAisToggle: () {
-        context.read<NavigationProvider>().toggleAis();
-        _syncMap();
-      },
-      onSeaMapToggle: _toggleSeaMap,
-      onAllWeather: _showAllWeather,
-      onClearRoute: _showClearConfirm,
-      onSettings: _openSettings,
-      onGpsFollowToggle: _toggleGpsFollow,
-      onSetDeparture: () {
-        context.read<NavigationProvider>().setDepartureFromCurrentPosition();
-        _panToCurrentPosition();
-        _syncMap();
-      },
-    );
-    _setupDomListeners();
+    try {
+      _htmlControls.init(
+        onAisToggle: () {
+          context.read<NavigationProvider>().toggleAis();
+          _syncMap();
+        },
+        onSeaMapToggle: _toggleSeaMap,
+        onAllWeather: _showAllWeather,
+        onClearRoute: _showClearConfirm,
+        onSettings: _openSettings,
+        onGpsFollowToggle: _toggleGpsFollow,
+        onSetDeparture: () {
+          context
+              .read<NavigationProvider>()
+              .setDepartureFromCurrentPosition();
+          _panToCurrentPosition();
+          _syncMap();
+        },
+      );
+    } catch (e) {
+      print('HtmlControls.init error: $e');
+    }
+    try {
+      _setupDomListeners();
+    } catch (e) {
+      print('setupDomListeners error: $e');
+    }
   }
 
   /// Listen for map tap and marker tap events dispatched by leaflet_bridge.js.
@@ -292,21 +302,25 @@ class _MapScreenState extends State<MapScreen> {
           }
 
           // Update HTML controls with current provider state
-          _htmlControls.updateState(
-            aisEnabled: provider.aisEnabled,
-            aisLoading: provider.isLoadingAis,
-            seaMapEnabled: _seaMapEnabled,
-            weatherLoading: provider.isLoadingWeather,
-            hasWaypoints: provider.allWaypoints.isNotEmpty,
-            gpsFollowEnabled: _gpsFollowEnabled,
-            hasGps: provider.currentPosition != null,
-            hasDeparture: provider.departure != null,
-            routeLegs: provider.routeLegs,
-            totalDistanceKm: provider.totalDistanceKm,
-            totalDurationText: provider.totalDurationText,
-            boatSpeed: provider.boatSpeed,
-            speedUnitLabel: provider.speedUnitLabel,
-          );
+          try {
+            _htmlControls.updateState(
+              aisEnabled: provider.aisEnabled,
+              aisLoading: provider.isLoadingAis,
+              seaMapEnabled: _seaMapEnabled,
+              weatherLoading: provider.isLoadingWeather,
+              hasWaypoints: provider.allWaypoints.isNotEmpty,
+              gpsFollowEnabled: _gpsFollowEnabled,
+              hasGps: provider.currentPosition != null,
+              hasDeparture: provider.departure != null,
+              routeLegs: provider.routeLegs,
+              totalDistanceKm: provider.totalDistanceKm,
+              totalDurationText: provider.totalDurationText,
+              boatSpeed: provider.boatSpeed,
+              speedUnitLabel: provider.speedUnitLabel,
+            );
+          } catch (e) {
+            print('updateState error: $e');
+          }
 
           return LeafletMapWidget(
             key: _mapKey,

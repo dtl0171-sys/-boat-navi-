@@ -71,8 +71,16 @@ class NavigationProvider extends ChangeNotifier {
   }
 
   Future<void> init() async {
-    await _loadPreferences();
-    await startLocationTracking();
+    try {
+      await _loadPreferences();
+    } catch (e) {
+      print('Failed to load preferences: $e');
+    }
+    try {
+      await startLocationTracking();
+    } catch (e) {
+      print('Failed to start location tracking: $e');
+    }
     if (_aisEnabled) {
       fetchAisVessels();
     }

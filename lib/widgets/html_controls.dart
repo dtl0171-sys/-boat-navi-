@@ -62,19 +62,23 @@ class HtmlControls {
     required void Function() onGpsFollowToggle,
     required void Function() onSetDeparture,
   }) {
-    _createTitlePanel();
-    _createControlPanel(
-      onAisToggle: onAisToggle,
-      onSeaMapToggle: onSeaMapToggle,
-      onAllWeather: onAllWeather,
-      onClearRoute: onClearRoute,
-      onSettings: onSettings,
-    );
-    _createGpsPanel(
-      onGpsFollowToggle: onGpsFollowToggle,
-      onSetDeparture: onSetDeparture,
-    );
-    _createRouteBar();
+    try { _createTitlePanel(); } catch (e) { print('createTitlePanel: $e'); }
+    try {
+      _createControlPanel(
+        onAisToggle: onAisToggle,
+        onSeaMapToggle: onSeaMapToggle,
+        onAllWeather: onAllWeather,
+        onClearRoute: onClearRoute,
+        onSettings: onSettings,
+      );
+    } catch (e) { print('createControlPanel: $e'); }
+    try {
+      _createGpsPanel(
+        onGpsFollowToggle: onGpsFollowToggle,
+        onSetDeparture: onSetDeparture,
+      );
+    } catch (e) { print('createGpsPanel: $e'); }
+    try { _createRouteBar(); } catch (e) { print('createRouteBar: $e'); }
   }
 
   void dispose() {
