@@ -16,12 +16,30 @@
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
     crossorigin="" />
   <style>
-    /* Current position - pulsing circle */
+    /* Current position - boat with pulsing ring */
     .marker-current {
-      width: 20px; height: 20px; border-radius: 50%;
-      background: #00E5FF;
-      border: 3px solid white;
-      box-shadow: 0 0 10px 3px rgba(0,229,255,0.5);
+      position: relative;
+      width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .marker-current .pulse-ring {
+      position: absolute;
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 2px solid rgba(0,229,255,0.5);
+      animation: pulse-ring 2s ease-out infinite;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.5); opacity: 1; }
+      100% { transform: scale(1.4); opacity: 0; }
+    }
+    .marker-current .dot {
+      position: relative; z-index: 1;
+      width: 28px; height: 28px; border-radius: 50%;
+      background: rgba(13,31,60,0.9);
+      border: 2px solid #00E5FF;
+      box-shadow: 0 0 10px 2px rgba(0,229,255,0.4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; line-height: 1;
     }
     /* Pin marker container */
     .marker-pin {

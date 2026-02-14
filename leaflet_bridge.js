@@ -102,12 +102,15 @@
           markerGroup.addLayer(aisMarker);
 
         } else if (m.type === "current") {
-          // Current position - small pulsing circle
+          // Current position - boat icon with pulsing ring
           icon = L.divIcon({
-            html: '<div class="marker-current"></div>',
+            html: '<div class="marker-current">' +
+              '<div class="pulse-ring"></div>' +
+              '<div class="dot">\u26F5</div>' +
+              '</div>',
             className: "",
-            iconSize: [26, 26],
-            iconAnchor: [13, 13],
+            iconSize: [40, 40],
+            iconAnchor: [20, 20],
           });
           marker = L.marker([m.lat, m.lng], { icon: icon });
           markerGroup.addLayer(marker);
