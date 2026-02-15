@@ -85,8 +85,8 @@
           icon = L.divIcon({
             html: svgHtml,
             className: "",
-            iconSize: [28, 28],
-            iconAnchor: [14, 14],
+            iconSize: [36, 36],
+            iconAnchor: [18, 18],
           });
 
           var aisMarker = L.marker([m.lat, m.lng], { icon: icon });
